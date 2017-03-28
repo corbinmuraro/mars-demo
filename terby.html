@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Terby Crater</title>
+
+	<style>
+		html, body {
+			margin: 0;
+		}
+	</style>
+</head>
+<body>
+	<div id="webgl"></div>
+
+
+
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+	<script src="TerrainLoader.js"></script>
+	<script type="text/javascript">
+		var width  = window.innerWidth;
+	    var height = window.innerHeight;
+
+	    // CREATE AND LIGHT THE SCENE
+	    var scene = new THREE.Scene();
+	    scene.add(new THREE.AmbientLight(0xeeeeee));
+
+	    // ADD A CAMERA AND POSITION IT
+	    var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+	    camera.position.set(0, -50, 20);
+	    camera.rotation.x+=1.2;
+
+
+	    // ADD A RENDERER
+	    var renderer = new THREE.WebGLRenderer({ alpha: true });
+	    renderer.setSize(width, height);
+	    renderer.setClearColor( 0xffffff, 0);
+
+	    // BUILD MARTIAN TERRAIN
+	    var terrainLoader = new THREE.TerrainLoader();
+
+	    terrainLoader.load('output.bin', function(data) {
+	        var geometry = new THREE.PlaneGeometry(60, 60, 99, 999);
+	        for (var i = 0, l = geometry.vertices.length; i < l; i++) {
+	            geometry.vertices[i].z = data[i]/ 65535 * 5;        
+	        }
+
+	        var material = new THREE.MeshPhongMaterial({
+	            map: THREE.ImageUtils.loadTexture('grid.jpg')
+	        });
+
+	        plane = new THREE.Mesh(geometry, material);
+	        scene.add(plane);
+	    });
+	    
+
+	    // RENDER THE SCENE
+
+	    document.getElementById('webgl').appendChild(renderer.domElement);
+
+	    render();
+
+	    function render() {
+	        requestAnimationFrame(render);
+	        renderer.render(scene, camera);
+	    }
+	</script>
+</body>
+</html>
+
+gdal_translate -scale -4575 -3217 0 65535 -outsize 350 350 -of ENVI DTEEC_021942_1520_021797_1520_A01.IMG output.bin
