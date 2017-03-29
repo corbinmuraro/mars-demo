@@ -1,52 +1,83 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Terby Crater</title>
-
-	<style>
-		html, body {
-			margin: 0;
-		}
-	</style>
+<title>Terby Crater</title>
+<style>
+	html, body {
+		margin: 0;
+	}
+</style>
 </head>
 <body>
 	<div id="webgl"></div>
 
+	<!-- skybox shaders -->
+	<script type="x-shader/x-vertex" id="sky-vertex">
+		varying vec3 vWorldPosition;
+		void main() {
+		vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+		vWorldPosition = worldPosition.xyz;
+		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		}
+	</script>
+	<script type="x-shader/x-fragment" id="sky-fragment">
+		uniform vec3 topColor;
+		uniform vec3 bottomColor;
+		uniform float offset;
+		uniform float exponent;
+		varying vec3 vWorldPosition;
+		void main() {
+		float h = normalize( vWorldPosition + offset ).y;
+		gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( h, exponent ), 0.0 ) ), 1.0 );
+		}
+	</script>
+	<!-- /skybox shaders -->
 
-
-
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+	<script src="three.min.js"></script>
 	<script src="TerrainLoader.js"></script>
 	<script type="text/javascript">
 		var width  = window.innerWidth;
 	    var height = window.innerHeight;
 
-	    // CREATE AND LIGHT THE SCENE
+	    // Create and light the scene
 	    var scene = new THREE.Scene();
 	    scene.add(new THREE.AmbientLight(0xeeeeee));
 
-	    // ADD A CAMERA AND POSITION IT
+	    // Add a camera and position it
 	    var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-	    camera.position.set(0, -50, 20);
-	    camera.rotation.x+=1.2;
+	    camera.position.set(0, 20, 6);
+	    camera.rotation.y += Math.PI;
+	    camera.rotation.x+=1.7;
 
-
-	    // ADD A RENDERER
+	    // Add a renderer
 	    var renderer = new THREE.WebGLRenderer({ alpha: true });
 	    renderer.setSize(width, height);
 	    renderer.setClearColor( 0xffffff, 0);
 
-	    // BUILD MARTIAN TERRAIN
-	    var terrainLoader = new THREE.TerrainLoader();
+	    // Build martian skybox
+		var vertexShader = document.getElementById('sky-vertex').textContent;
+		var fragmentShader = document.getElementById('sky-fragment').textContent;
+		var uniforms = {
+		    topColor: {type: "c", value: new THREE.Color(0xb79670)}, bottomColor: {type: "c", value: new THREE.Color(0xc48051)},
+		    offset: {type: "f", value: 50}, exponent: {type: "f", value: 0.6}
+		};
+		var skyMaterial = new THREE.ShaderMaterial({vertexShader: vertexShader, fragmentShader: fragmentShader, uniforms: uniforms, side: THREE.BackSide, fog: false});
 
+	    // create Mesh with sphere geometry and add to the scene
+	    var skyBox = new THREE.Mesh( new THREE.SphereGeometry(250, 60, 40), skyMaterial);
+	    scene.add(skyBox);
+
+
+	    // Build martian terrain
+	    var terrainLoader = new THREE.TerrainLoader();
 	    terrainLoader.load('output.bin', function(data) {
-	        var geometry = new THREE.PlaneGeometry(60, 60, 99, 999);
+	        var geometry = new THREE.PlaneGeometry(60, 100, 99, 999);
 	        for (var i = 0, l = geometry.vertices.length; i < l; i++) {
-	            geometry.vertices[i].z = data[i]/ 65535 * 5;        
+	            geometry.vertices[i].z = data[i]/ 65535 * 12;        
 	        }
 
 	        var material = new THREE.MeshPhongMaterial({
-	            map: THREE.ImageUtils.loadTexture('grid.jpg')
+	            map: THREE.ImageUtils.loadTexture('color.jpg')
 	        });
 
 	        plane = new THREE.Mesh(geometry, material);
@@ -54,18 +85,14 @@
 	    });
 	    
 
-	    // RENDER THE SCENE
-
+	    // Render the scene
 	    document.getElementById('webgl').appendChild(renderer.domElement);
-
-	    render();
 
 	    function render() {
 	        requestAnimationFrame(render);
 	        renderer.render(scene, camera);
 	    }
+	    render();
 	</script>
 </body>
 </html>
-
-gdal_translate -scale -4575 -3217 0 65535 -outsize 350 350 -of ENVI DTEEC_021942_1520_021797_1520_A01.IMG output.bin
